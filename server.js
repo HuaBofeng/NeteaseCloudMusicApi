@@ -13,7 +13,7 @@ const logger = require('./util/logger.js')
 
 /**
  * The version check result.
- * @readonly
+ * @readonl
  * @enum {number}
  */
 const VERSION_CHECK_RESULT = {
