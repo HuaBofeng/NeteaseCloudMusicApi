@@ -5128,43 +5128,6 @@ let data = encodeURIComponent(
 
 **调用例子 :** `/voicelist/my/created`
 
-### 发布评论
-
-说明 : 登录后调用此接口, 传入评论线程 id, 评论内容等信息, 发布评论
-
-**必选参数 :**
-
-`id`: 歌曲id
-`content`: 评论内容
-
-**接口地址 :** `/comment/add`
-
-**调用例子 :** `/comment/add?id=2058263032&content=这首歌太棒了！`
-
-### 删除评论
-
-说明 : 登录后调用此接口, 传入评论 id, 删除评论
-
-**必选参数 :**
-`cid`: 评论 id
-`id`: 歌曲id
-
-**接口地址 :** `/comment/delete`
-
-**调用例子 :** `/comment/delete?threadId=2058263032&commentId=123456789`
-
-### 回复评论
-
-说明 : 登录后调用此接口, 传入歌曲 id, 回复内容等信息, 回复评论
-
-**必选参数 :**
-`id`: 歌曲id
-`commentId`: 被回复的评论 id
-`content`: 回复内容
-
-**接口地址 :** `/comment/reply`
-
-**调用例子 :** `/comment/reply?id=2058263032&commentId=123456789&content=我也觉得这首歌很棒！`
 
 ### DIFM电台 - 分类
 
@@ -5329,6 +5292,52 @@ let data = encodeURIComponent(
 **接口地址 :** `/song/copyright/rcmd`
 
 **调用例子 :** `/song/copyright/rcmd?songid=27946878`
+
+### 举报评论
+
+说明 : 登录后调用此接口, 传入歌曲 id 和评论 id, 举报评论
+
+**必选参数 :**
+
+`id`: 歌曲 id
+
+`cid`: 评论 id
+
+`reason`: 举报理由
+
+**接口地址 :** `/comment/report`
+
+**调用例子 :* `/comment/report?id=2058263032&cid=123456789&reason=人身攻击`
+
+### 多级行政区划数据
+
+说明 : 调用此接口,可获取多级行政区划数据
+
+**可选参数 :** `bizCode`: 业务类型,默认空字符串。传入 `chart` 时获取支持城市榜的城市列表,传空时获取所有城市列表
+
+**接口地址 :** `/lbs/city/code`
+
+**调用例子 :** `/lbs/city/code`
+
+### 指定维度音乐排行榜详情
+
+说明 : 调用此接口,可获取城市榜、城市风格榜等指定维度音乐排行榜详情
+
+**必选参数 :**
+
+`chartCode`: 榜单编码,如 `CITY_SONG_CHART`、`CITY_STYLE_SONG_CHART`
+
+`targetId`: 目标 id,城市榜如 `110000`,城市风格榜如 北京华语流行榜 `110000_1020`。城市风格榜格式通常为 `城市 id_曲风 id`,其中曲风 id 可通过[曲风列表](#曲风列表)接口 `/style/list` 获取。城市榜的城市列表可通过[多级行政区划数据](#多级行政区划数据)接口传入 `bizCode=chart` 获取；城市风格榜的城市列表可通过该接口传空 `bizCode` 获取
+
+`targetType`: 目标类型,如 `CITY`、`CITY_STYLE`
+
+**接口地址 :** `/chart/detail`
+
+**调用例子 :** `/chart/detail?chartCode=CITY_SONG_CHART&targetId=110000&targetType=CITY`
+
+### 指定维度音乐排行榜列表
+
+说明 : 调用此接口,可获取城市榜、城市风格榜等指定维度音乐排行榜歌曲列表
 
 ## 离线访问此文档
 
