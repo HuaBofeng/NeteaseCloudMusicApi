@@ -157,9 +157,10 @@ const processCookieObject = (cookie, uri) => {
     appver: cookie.appver || os.appver,
   }
 
-  if (NMTID) {
-    processedCookie['NMTID'] = NMTID
-  }
+  processedCookie['NMTID'] =
+    cookie.NMTID ||
+    NMTID ||
+    '00O' + CryptoJS.lib.WordArray.random(38).toString()
 
   if (!processedCookie.MUSIC_U) {
     processedCookie.MUSIC_A = processedCookie.MUSIC_A || anonymous_token
@@ -426,10 +427,10 @@ const createRequest = async (uri, data, options) => {
 
         const cleanCookie = (x) => x.replace(/\s*Domain=[^(;|$)]+;*/, '')
 
-        if (crypto == 'eapi' && !NMTID) {
+        if (crypto === 'eapi' && !NMTID) {
           answer.cookie = setCookies.map((x) => {
             const cleaned = cleanCookie(x)
-            const match = x.match(/NMTID=([^;]+)/)
+            const match = x.match(/(?:^|;\s*)NMTID=([^;]+)/)
             if (match) {
               NMTID = match[1]
             }
