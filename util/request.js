@@ -68,6 +68,8 @@ const WNMCID = (function () {
   return `${randomString}.${now().toString()}.01.0`
 })()
 
+let NMTID = ''
+
 // 预先定义osMap
 const osMap = {
   pc: {
@@ -155,8 +157,8 @@ const processCookieObject = (cookie, uri) => {
     appver: cookie.appver || os.appver,
   }
 
-  if (uri.indexOf('login') === -1) {
-    processedCookie['NMTID'] = CryptoJS.lib.WordArray.random(16).toString()
+  if (NMTID) {
+    processedCookie['NMTID'] = NMTID
   }
 
   if (!processedCookie.MUSIC_U) {
@@ -420,9 +422,22 @@ const createRequest = async (uri, data, options) => {
     axios(settings)
       .then((res) => {
         const body = res.data
-        answer.cookie = (res.headers['set-cookie'] || []).map((x) =>
-          x.replace(/\s*Domain=[^(;|$)]+;*/, ''),
-        )
+        const setCookies = res.headers['set-cookie'] || []
+
+        const cleanCookie = (x) => x.replace(/\s*Domain=[^(;|$)]+;*/, '')
+
+        if (crypto == 'eapi' && !NMTID) {
+          answer.cookie = setCookies.map((x) => {
+            const cleaned = cleanCookie(x)
+            const match = x.match(/NMTID=([^;]+)/)
+            if (match) {
+              NMTID = match[1]
+            }
+            return cleaned
+          })
+        } else {
+          answer.cookie = setCookies.map(cleanCookie)
+        }
 
         // debug: 统一注释块，需要时取消注释查看请求/返回的原始密文
 
