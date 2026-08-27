@@ -34,10 +34,13 @@ jobs:
         with:
           node-version: '18'
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9
+
       - name: Install dependencies
-        run: |
-          npm install -g pnpm
-          pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Build for ${{ matrix.platform }}
         run: |

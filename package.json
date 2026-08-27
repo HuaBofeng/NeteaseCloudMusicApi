@@ -11,9 +11,9 @@
     "prepare": "husky install",
     "docs:format": "node scripts/format-docs.js",
     "docs:check": "node scripts/format-docs.js --check",
-    "pkgwin": "node node_modules/pkg/lib-es5/bin.js . -t node18-win-x64 -C GZip -o precompiled/app",
-    "pkglinux": "node node_modules/pkg/lib-es5/bin.js . -t node18-linux-x64 -C GZip -o precompiled/app",
-    "pkgmacos": "node node_modules/pkg/lib-es5/bin.js . -t node18-macos-x64 -C GZip -o precompiled/app"
+    "pkgwin": "node scripts/build-pkg.js . -t node18-win-x64 -C GZip -o precompiled/app",
+    "pkglinux": "node scripts/build-pkg.js . -t node18-linux-x64 -C GZip -o precompiled/app",
+    "pkgmacos": "node scripts/build-pkg.js . -t node18-macos-x64 -C GZip -o precompiled/app"
   },
   "bin": "./app.js",
   "pkg": {
