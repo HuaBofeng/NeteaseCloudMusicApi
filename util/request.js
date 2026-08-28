@@ -17,7 +17,7 @@ const {
   generateRandomChineseIP,
 } = require('./index')
 const { URLSearchParams, URL } = require('url')
-const { APP_CONF } = require('../util/config.json')
+const { APP_CONF } = require('./config.json')
 const {
   getToken: antiCheatTokenV2,
 } = require('../module/register_checktoken_v2')
@@ -68,6 +68,9 @@ const WNMCID = (function () {
   return `${randomString}.${now().toString()}.01.0`
 })()
 
+let NMTID = ''
+let NMTID_RETRIES_LEFT = 3
+
 // 预先定义osMap
 const osMap = {
   pc: {
@@ -114,7 +117,7 @@ const userAgentMap = {
   api: {
     pc: 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Safari/537.36 Chrome/91.0.4472.164 NeteaseMusicDesktop/3.1.29.205117',
     android:
-      'NeteaseMusic/9.1.65.240927161425(9001065);Dalvik/2.1.0 (Linux; U; Android 14; 23013RK75C Build/UKQ1.230804.001)',
+      'NeteaseMusic/9.5.61.260802021928(9005061);Dalvik/2.1.0 (Linux; U; Android 12; HBN-AL00 Build/cd737a2.0)',
     iphone: 'NeteaseMusic 9.0.90/5038 (iPhone; iOS 16.2; zh_CN)',
   },
 }
@@ -136,7 +139,7 @@ const chooseUserAgent = (crypto, uaType = 'pc') => {
 }
 
 // cookie处理
-const processCookieObject = (cookie, uri) => {
+const processCookieObject = (cookie, crypto) => {
   const _ntes_nuid = CryptoJS.lib.WordArray.random(32).toString()
   const os = osMap[cookie.os] || osMap['pc']
 
@@ -155,8 +158,14 @@ const processCookieObject = (cookie, uri) => {
     appver: cookie.appver || os.appver,
   }
 
-  if (uri.indexOf('login') === -1) {
-    processedCookie['NMTID'] = CryptoJS.lib.WordArray.random(16).toString()
+  // 服务端下发条件为不带NMTID请求任意eapi加密方式接口
+  if (cookie.NMTID) {
+    processedCookie['NMTID'] = cookie.NMTID
+  } else if (NMTID) {
+    processedCookie['NMTID'] = NMTID
+  } else if (NMTID_RETRIES_LEFT <= 0 || crypto !== 'eapi') {
+    processedCookie['NMTID'] =
+      '00O' + CryptoJS.lib.WordArray.random(19).toString()
   }
 
   if (!processedCookie.MUSIC_U) {
@@ -187,14 +196,16 @@ const generateRequestId = () => {
     .padStart(4, '0')}`
 }
 
-const createRequest = (uri, data, options) => {
+const createRequest = async (uri, data, options) => {
   let token = ''
   switch (options.checkToken) {
     case 'v2':
-      token = antiCheatTokenV2()
+      // 每次实时获取反作弊 token，不缓存
+      token = await antiCheatTokenV2()
       break
     case 'v3':
-      token = antiCheatTokenV3()
+      // 每次实时获取反作弊 token，不缓存
+      token = await antiCheatTokenV3()
       break
   }
 
@@ -202,6 +213,12 @@ const createRequest = (uri, data, options) => {
     // 变量声明和初始化
     const headers = options.headers ? { ...options.headers } : {}
     const ip = options.realIP || options.ip || ''
+
+    // 加密方式选择
+    let crypto = options.crypto
+    if (crypto === '') {
+      crypto = APP_CONF.encrypt ? 'eapi' : 'api'
+    }
 
     // IP头设置
     if (ip) {
@@ -215,18 +232,12 @@ const createRequest = (uri, data, options) => {
     }
 
     if (typeof cookie === 'object') {
-      cookie = processCookieObject(cookie, uri)
+      cookie = processCookieObject(cookie, crypto)
       headers['Cookie'] = cookieObjToString(cookie)
     }
     let url = ''
     let encryptData = ''
-    let crypto = options.crypto
     const csrfToken = cookie['__csrf'] || ''
-
-    // 加密方式选择
-    if (crypto === '') {
-      crypto = APP_CONF.encrypt ? 'eapi' : 'api'
-    }
 
     const answer = { status: 500, body: {}, cookie: [] }
 
@@ -330,9 +341,8 @@ const createRequest = (uri, data, options) => {
 
         if (cookie.MUSIC_U) header['MUSIC_U'] = cookie.MUSIC_U
         if (cookie.MUSIC_A) header['MUSIC_A'] = cookie.MUSIC_A
-        if (options.checkToken) {
-          header['X-antiCheatToken'] = token
-        }
+        if (options.checkToken) header['X-antiCheatToken'] = token
+        if (crypto === 'eapi' && cookie.NMTID) header['NMTID'] = cookie.NMTID
 
         headers['Cookie'] = createHeaderCookie(header)
         headers['User-Agent'] =
@@ -418,9 +428,30 @@ const createRequest = (uri, data, options) => {
     axios(settings)
       .then((res) => {
         const body = res.data
-        answer.cookie = (res.headers['set-cookie'] || []).map((x) =>
-          x.replace(/\s*Domain=[^(;|$)]+;*/, ''),
-        )
+        const setCookies = res.headers['set-cookie'] || []
+
+        const cleanCookie = (x) => x.replace(/\s*Domain=[^(;|$)]+;*/, '')
+
+        // 仅对真正未携带 NMTID 的探测请求采集并消耗重试次数
+        if (
+          crypto === 'eapi' &&
+          !NMTID &&
+          NMTID_RETRIES_LEFT > 0 &&
+          !cookie.NMTID
+        ) {
+          NMTID_RETRIES_LEFT--
+          answer.cookie = setCookies.map((x) => {
+            const cleaned = cleanCookie(x)
+            const match = x.match(/(?:^|;\s*)NMTID=([^;]+)/)
+            if (match) {
+              //不需要处理竞争, 官方客户端真实操作
+              NMTID = match[1]
+            }
+            return cleaned
+          })
+        } else {
+          answer.cookie = setCookies.map(cleanCookie)
+        }
 
         // debug: 统一注释块，需要时取消注释查看请求/返回的原始密文
 
